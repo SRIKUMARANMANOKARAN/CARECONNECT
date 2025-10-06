@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CareConnect Portal</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f1f5f9; /* slate-100 */
+      }
+    </style>
+
+    <!-- Importmap for Google Studio / React -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+        "react/": "https://aistudiocdn.com/react@^19.1.1/",
+        "react": "https://aistudiocdn.com/react@^19.1.1",
+        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.21.0",
+        "recharts": "https://aistudiocdn.com/recharts@^3.2.1"
+      }
+    }
+    </script>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+      import { getFirestore, doc, setDoc, serverTimestamp, getDocs, collection } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+      // Firebase configuration
+      const firebaseConfig = {
+        apiKey: "AIzaSyBOSntzWYWITk0vCmltntlbbJ42X-MYLh4",
+        authDomain: "studio-3813671334-6ca0c.firebaseapp.com",
+        projectId: "studio-3813671334-6ca0c",
+        storageBucket: "studio-3813671334-6ca0c.firebasestorage.app",
+        messagingSenderId: "849674789695",
+        appId: "1:849674789695:web:d8ef1138567ca0c0bfe98a"
+      };
+
+      // Initialize Firebase
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+
+      console.log("Firebase connected", db);
+
+      // --- Save Hospital Data ---
+      const updateButton = document.getElementById("updateButton");
+      updateButton.addEventListener("click", async () => {
+        const name = document.getElementById("hospitalName").value.trim();
+        const beds = parseInt(document.getElementById("beds").value) || 0;
+        const icu = parseInt(document.getElementById("icu").value) || 0;
+        const ventilators = parseInt(document.getElementById("ventilators").value) || 0;
+        const oxygen = document.getElementById("oxygen").checked;
+        const doctors = parseInt(document.getElementById("doctors").value) || 0;
+        const medicines = parseInt(document.getElementById("medicines").value) || 0;
+        const attendants = parseInt(document.getElementById("attendants").value) || 0;
+
+        if (!name) {
+          alert("Hospital Name is required!");
+          return;
+        }
+
+        try {
+          const hospitalRef = doc(db, "hospitals", name);
+          await setDoc(hospitalRef, {
+            name,
+            beds,
+            icu,
+            ventilators,
+            oxygen,
+            doctors,
+            medicines,
+            attendants,
+            last_updated: serverTimestamp()
+          });
+          alert("Hospital data updated successfully!");
+          loadHospitalData(); // refresh live data
+        } catch (error) {
+          console.error("Error updating hospital data:", error);
+          alert("Failed to update data. Check console for details.");
+        }
+      });
+
+      // --- Load Live Hospital Data ---
+      const hospitalCards = document.getElementById("hospitalCards");
+
+      async function loadHospitalData() {
+        hospitalCards.innerHTML = ""; // clear previous
+        const querySnapshot = await getDocs(collection(db, "hospitals"));
+        querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const card = document.createElement("div");
+          card.className = "p-4 bg-white rounded shadow";
+          card.innerHTML = `
+            <h3 class="font-bold text-lg">${data.name}</h3>
+            <p>Beds: ${data.beds}, ICU: ${data.icu}, Ventilators: ${data.ventilators}</p>
+            <p>Oxygen: ${data.oxygen ? "Yes" : "No"}, Doctors: ${data.doctors}</p>
+            <p>Medicines: ${data.medicines}, Attendants: ${data.attendants}</p>
+          `;
+          hospitalCards.appendChild(card);
+        });
+      }
+
+      // Load on page load
+      window.onload = loadHospitalData;
+    </script>
+
+  </head>
+
+  <body class="bg-slate-100 text-slate-800 font-sans">
+
+    <div id="root" class="p-6">
+
+      <!-- Hospital Data Form -->
+      <div class="p-6 max-w-lg mx-auto bg-white rounded-xl shadow-md space-y-4 mt-6">
+        <h2 class="text-xl font-bold">Update Hospital Data</h2>
+
+        <input id="hospitalName" type="text" placeholder="Hospital Name" class="w-full p-2 border rounded" />
+        <input id="beds" type="number" placeholder="Beds Available" class="w-full p-2 border rounded" />
+        <input id="icu" type="number" placeholder="ICU Available" class="w-full p-2 border rounded" />
+        <input id="ventilators" type="number" placeholder="Ventilators Available" class="w-full p-2 border rounded" />
+
+        <label class="flex items-center space-x-2">
+          <input id="oxygen" type="checkbox" />
+          <span>Oxygen Available</span>
+        </label>
+
+        <input id="doctors" type="number" placeholder="Doctors Available" class="w-full p-2 border rounded" />
+        <input id="medicines" type="number" placeholder="Medicines Available" class="w-full p-2 border rounded" />
+        <input id="attendants" type="number" placeholder="Attendants Available" class="w-full p-2 border rounded" />
+
+        <button id="updateButton" class="w-full p-2 bg-blue-600 text-white rounded">
+          Update Firestore
+        </button>
+      </div>
+
+      <!-- Live Hospital Data -->
+      <div id="hospitalList" class="p-6 max-w-4xl mx-auto space-y-4 mt-6">
+        <h2 class="text-xl font-bold">Live Hospital Data</h2>
+        <div id="hospitalCards" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      </div>
+
+    </div>
+
+  </body>
+</html>
